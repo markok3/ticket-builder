@@ -6,9 +6,17 @@ export interface BuildOptions {
   tolerance: number;
   count: number;
   legs: number;
+  /** Every leg's odd must be at least this. */
+  minOdd: number;
 }
 
-export const DEFAULT_OPTIONS: BuildOptions = { target: 5, tolerance: 0.5, count: 10, legs: 2 };
+export const DEFAULT_OPTIONS: BuildOptions = {
+  target: 5,
+  tolerance: 0.5,
+  count: 10,
+  legs: 2,
+  minOdd: 1.01,
+};
 
 /** Candidates explored per ticket; the pool is payout-sorted, so the best combos come first. */
 const MAX_CANDIDATES_PER_TICKET = 1000;
@@ -47,12 +55,12 @@ function toLeg(s: Selection): TicketLeg {
  * while still surfacing variety beyond the few lowest-margin matches.
  */
 export function buildTickets(pool: Selection[], opts: BuildOptions): Ticket[] {
-  const { target, tolerance, count, legs } = opts;
+  const { target, tolerance, count, legs, minOdd: minLegOdd } = opts;
   const lo = target;
   const hi = target + tolerance;
 
   const sortedAll = pool
-    .filter((s) => s.odd < hi)
+    .filter((s) => s.odd >= minLegOdd && s.odd < hi)
     .sort((a, b) => b.marketPayoutPct - a.marketPayoutPct || a.odd - b.odd);
 
   const usedMatches = new Set<number>();

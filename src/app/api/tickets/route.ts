@@ -26,15 +26,18 @@ function numParam(req: NextRequest, name: string, fallback: number, min: number,
 }
 
 export async function GET(req: NextRequest) {
-  const target = numParam(req, "target", DEFAULT_OPTIONS.target, 1.5, 1000);
-  const tolerance = numParam(req, "tolerance", DEFAULT_OPTIONS.tolerance, 0.01, target);
+  const target = numParam(req, "target", DEFAULT_OPTIONS.target, 1.05, 1000);
+  // Window above the target scales with it: +0.5 at target 5, +0.135 at target 1.35.
+  const defaultTolerance = Math.min(0.5, Math.max(0.05, target * 0.1));
+  const tolerance = numParam(req, "tolerance", defaultTolerance, 0.01, target);
   const count = numParam(req, "count", DEFAULT_OPTIONS.count, 1, 50);
-  const legs = Math.round(numParam(req, "legs", DEFAULT_OPTIONS.legs, 2, 6));
+  const legs = Math.round(numParam(req, "legs", DEFAULT_OPTIONS.legs, 2, 10));
+  const minOdd = numParam(req, "minOdd", DEFAULT_OPTIONS.minOdd, 1.01, 100);
 
   try {
     const { matches, odds } = await getData();
     const pool = buildSelectionPool(matches, odds);
-    const tickets = buildTickets(pool, { target, tolerance, count, legs });
+    const tickets = buildTickets(pool, { target, tolerance, count, legs, minOdd });
     const body: TicketsResponse = {
       generatedAt: new Date().toISOString(),
       matchCount: matches.length,

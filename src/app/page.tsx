@@ -11,7 +11,7 @@ const kickoffFormat = new Intl.DateTimeFormat("en-GB", {
 });
 
 const COUNT_OPTIONS = [10, 20, 30, 50];
-const LEG_OPTIONS = [2, 3, 4, 5, 6];
+const LEG_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 function LegRow({ leg, score }: { leg: TicketLeg; score?: MatchScore }) {
   let scoreLine: React.ReactNode = null;
@@ -195,6 +195,7 @@ function MyTickets({
 export default function Home() {
   const [tab, setTab] = useState<"builder" | "mine">("builder");
   const [target, setTarget] = useState("5");
+  const [minOdd, setMinOdd] = useState("");
   const [count, setCount] = useState(10);
   const [legs, setLegs] = useState(2);
   const [data, setData] = useState<TicketsResponse | null>(null);
@@ -206,13 +207,16 @@ export default function Home() {
     setSaved(loadTickets());
   }, []);
 
-  const load = useCallback(async (targetValue: string, countValue: number, legsValue: number) => {
+  const load = useCallback(
+    async (targetValue: string, countValue: number, legsValue: number, minOddValue: string) => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
       const t = Number(targetValue);
       if (Number.isFinite(t) && t > 1) params.set("target", String(t));
+      const m = Number(minOddValue);
+      if (minOddValue !== "" && Number.isFinite(m) && m > 1) params.set("minOdd", String(m));
       params.set("count", String(countValue));
       params.set("legs", String(legsValue));
       const res = await fetch(`/api/tickets?${params}`);
@@ -227,7 +231,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    load("5", 10, 2);
+    load("5", 10, 2, "");
   }, [load]);
 
   const savedKeys = new Set(saved.map(ticketKey));
@@ -248,17 +252,29 @@ export default function Home() {
               className="flex items-end gap-2"
               onSubmit={(e) => {
                 e.preventDefault();
-                load(target, count, legs);
+                load(target, count, legs, minOdd);
               }}
             >
               <label className="text-sm text-slate-400">
                 Target coef
                 <input
                   type="number"
-                  step="0.5"
-                  min="1.5"
+                  step="any"
+                  min="1.05"
                   value={target}
                   onChange={(e) => setTarget(e.target.value)}
+                  className="mt-1 block w-24 rounded-md border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100"
+                />
+              </label>
+              <label className="text-sm text-slate-400">
+                Min odd/tip
+                <input
+                  type="number"
+                  step="any"
+                  min="1.01"
+                  placeholder="any"
+                  value={minOdd}
+                  onChange={(e) => setMinOdd(e.target.value)}
                   className="mt-1 block w-24 rounded-md border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100"
                 />
               </label>
@@ -269,7 +285,7 @@ export default function Home() {
                   onChange={(e) => {
                     const l = Number(e.target.value);
                     setLegs(l);
-                    load(target, count, l);
+                    load(target, count, l, minOdd);
                   }}
                   className="mt-1 block w-16 rounded-md border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100"
                 >
@@ -287,7 +303,7 @@ export default function Home() {
                   onChange={(e) => {
                     const c = Number(e.target.value);
                     setCount(c);
-                    load(target, c, legs);
+                    load(target, c, legs, minOdd);
                   }}
                   className="mt-1 block w-20 rounded-md border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100"
                 >
