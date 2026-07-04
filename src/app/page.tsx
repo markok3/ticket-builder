@@ -275,8 +275,8 @@ export default function Home() {
           <div>
             <h1 className="text-3xl font-bold">Ticket Builder</h1>
             <p className="mt-1 text-sm text-slate-400">
-              Today&apos;s matches on mozzartbet.mk — tickets at or above your target
-              coefficient, lowest bookmaker margin first.
+              Today&apos;s matches on mozzartbet.mk — tickets closest to your target
+              coefficient first, ties broken by lowest bookmaker margin.
             </p>
           </div>
           {tab === "builder" && (

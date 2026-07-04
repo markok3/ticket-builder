@@ -45,8 +45,8 @@ function toLeg(s: Selection): TicketLeg {
 
 /**
  * Build N-leg tickets: combine selections so the total odd lands in
- * `[target, target + tolerance]` (never below the target), rank by lowest
- * bookmaker margin (highest payout), tie-broken by closeness to the target.
+ * `[target, target + tolerance]` (never below the target), rank by closeness
+ * to the target, tie-broken by lowest bookmaker margin (highest payout).
  * Several tips may come from the same match when they don't overlap
  * (see `canCombine`). Displayed tickets never share a match.
  *
@@ -108,12 +108,12 @@ export function buildTickets(pool: Selection[], opts: BuildOptions): Ticket[] {
     dfs(0, 1);
     if (candidates.length === 0) break;
 
-    // Highest payout first (payouts within 0.1% count as equal), then closest to target.
+    // Closest to the target first (diffs within 0.01 count as equal), then highest payout.
     candidates.sort((x, y) => {
-      const px = Math.round(x.payoutPct * 10);
-      const py = Math.round(y.payoutPct * 10);
-      if (px !== py) return py - px;
-      return x.diff - y.diff;
+      const dx = Math.round(x.diff * 100);
+      const dy = Math.round(y.diff * 100);
+      if (dx !== dy) return dx - dy;
+      return y.payoutPct - x.payoutPct;
     });
 
     const best = candidates[0];
@@ -125,5 +125,7 @@ export function buildTickets(pool: Selection[], opts: BuildOptions): Ticket[] {
     });
   }
 
-  return tickets;
+  // Passes shrink the pool as matches get used, so later passes can land closer
+  // to the target than earlier ones — present the whole list closest-first.
+  return tickets.sort((a, b) => a.totalOdd - b.totalOdd || b.payoutPct - a.payoutPct);
 }
