@@ -34,6 +34,7 @@ function toLeg(s: Selection): TicketLeg {
     code: s.code,
     teams: s.teams,
     competition: s.competition,
+    sport: s.sport,
     kickoff: s.kickoff,
     market: s.market,
     pick: s.pick,

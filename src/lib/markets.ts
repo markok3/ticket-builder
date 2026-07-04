@@ -32,7 +32,20 @@ export interface MarketDef {
   legs: LegDef[];
 }
 
-export const MARKETS: MarketDef[] = [
+/** Sports offered in the UI; ids are Mozzart's sport ids. */
+export const SPORTS = [
+  { id: 1, label: "Football" },
+  { id: 2, label: "Basketball" },
+  { id: 5, label: "Tennis" },
+  { id: 8, label: "Baseball" },
+  { id: 10, label: "Rugby" },
+  { id: 14, label: "Boxing" },
+] as const;
+
+export const SPORT_IDS = SPORTS.map((s) => s.id as number);
+export const SPORT_LABELS = new Map<number, string>(SPORTS.map((s) => [s.id, s.label]));
+
+const FOOTBALL_MARKETS: MarketDef[] = [
   {
     label: "Конечен тип (1X2)",
     family: "ft-result",
@@ -134,7 +147,163 @@ export const MARKETS: MarketDef[] = [
   },
 ];
 
-export const ALL_SUBGAME_IDS = MARKETS.flatMap((m) => m.legs.map((l) => l.id));
+/**
+ * Non-football markets. Goal constraints don't apply, so same-match overlap is
+ * prevented purely by families: every winner-flavoured market (match winner,
+ * handicap) shares the `result` family so at most one lands on a ticket per
+ * match. Families only need to be unique within a sport — a match belongs to
+ * exactly one sport.
+ */
+const BASKETBALL_MARKETS: MarketDef[] = [
+  {
+    label: "Конечен тип (1X2)",
+    family: "result",
+    coverage: 1,
+    legs: [{ id: 1002017001 }, { id: 1002017002 }, { id: 1002017003 }],
+  },
+  {
+    label: "Победник на натпреварот",
+    family: "result",
+    coverage: 1,
+    legs: [{ id: 1002196001 }, { id: 1002196003 }],
+  },
+  {
+    label: "Победник со хендикеп",
+    family: "result",
+    coverage: 1,
+    legs: [{ id: 1002001001 }, { id: 1002001003 }],
+  },
+  {
+    label: "Прво полувреме (1X2)",
+    family: "fh-result",
+    coverage: 1,
+    legs: [{ id: 1002025001 }, { id: 1002025002 }, { id: 1002025003 }],
+  },
+  {
+    label: "Вкупно поени",
+    family: "total",
+    coverage: 1,
+    legs: [{ id: 1002027001 }, { id: 1002027003 }],
+  },
+];
+
+const TENNIS_MARKETS: MarketDef[] = [
+  {
+    label: "Конечен тип",
+    family: "result",
+    coverage: 1,
+    legs: [{ id: 1005017001 }, { id: 1005017003 }],
+  },
+  {
+    label: "Хендикеп сетови",
+    family: "result",
+    coverage: 1,
+    legs: [{ id: 1005001001 }, { id: 1005001003 }],
+  },
+  {
+    label: "Хендикеп гемови",
+    family: "result",
+    coverage: 1,
+    legs: [{ id: 1005085001 }, { id: 1005085003 }],
+  },
+  {
+    label: "Прв сет",
+    family: "set1",
+    coverage: 1,
+    legs: [{ id: 1005022001 }, { id: 1005022002 }],
+  },
+  {
+    label: "Вкупно гемови",
+    family: "total",
+    coverage: 1,
+    legs: [{ id: 1005087001 }, { id: 1005087003 }],
+  },
+];
+
+const BASEBALL_MARKETS: MarketDef[] = [
+  {
+    label: "Конечен тип",
+    family: "result",
+    coverage: 1,
+    legs: [{ id: 1008017001 }, { id: 1008017003 }],
+  },
+  {
+    label: "Хендикеп поени",
+    family: "result",
+    coverage: 1,
+    legs: [{ id: 1008001001 }, { id: 1008001003 }],
+  },
+  {
+    label: "Прв ининг (1X2)",
+    family: "inning1",
+    coverage: 1,
+    legs: [{ id: 1008199001 }, { id: 1008199002 }, { id: 1008199003 }],
+  },
+  {
+    label: "Вкупно поени",
+    family: "total",
+    coverage: 1,
+    legs: [{ id: 1008027001 }, { id: 1008027003 }],
+  },
+];
+
+const RUGBY_MARKETS: MarketDef[] = [
+  {
+    label: "Конечен тип (1X2)",
+    family: "result",
+    coverage: 1,
+    legs: [{ id: 1010017001 }, { id: 1010017002 }, { id: 1010017003 }],
+  },
+  {
+    label: "Хендикеп поени",
+    family: "result",
+    coverage: 1,
+    legs: [{ id: 1010001001 }, { id: 1010001003 }],
+  },
+  {
+    label: "Прво полувреме (1X2)",
+    family: "fh-result",
+    coverage: 1,
+    legs: [{ id: 1010025001 }, { id: 1010025002 }, { id: 1010025003 }],
+  },
+  {
+    label: "Вкупно поени",
+    family: "total",
+    coverage: 1,
+    legs: [{ id: 1010027001 }, { id: 1010027003 }],
+  },
+  {
+    label: "Вкупно поени прво полувреме",
+    family: "fh-total",
+    coverage: 1,
+    legs: [{ id: 1010028001 }, { id: 1010028003 }],
+  },
+];
+
+const BOXING_MARKETS: MarketDef[] = [
+  {
+    label: "Конечен тип",
+    family: "result",
+    coverage: 1,
+    legs: [{ id: 1014017001 }, { id: 1014017003 }],
+  },
+];
+
+export const MARKETS_BY_SPORT: Record<number, MarketDef[]> = {
+  1: FOOTBALL_MARKETS,
+  2: BASKETBALL_MARKETS,
+  5: TENNIS_MARKETS,
+  8: BASEBALL_MARKETS,
+  10: RUGBY_MARKETS,
+  14: BOXING_MARKETS,
+};
+
+/** Union of subgame ids for the given sports — sports use disjoint id ranges. */
+export function subgameIdsForSports(sportIds: number[]): number[] {
+  return sportIds.flatMap((sport) =>
+    (MARKETS_BY_SPORT[sport] ?? []).flatMap((m) => m.legs.map((l) => l.id))
+  );
+}
 
 /** Family pairs that are too correlated to combine even though goal math allows it. */
 const INCOMPATIBLE_FAMILIES: [string, string][] = [["ft-result", "advance"]];
@@ -197,7 +366,7 @@ export function buildSelectionPool(matches: MozzartMatch[], odds: MatchOdds[]): 
     const match = matchById.get(id);
     if (!match || !kodds) continue;
 
-    for (const market of MARKETS) {
+    for (const market of MARKETS_BY_SPORT[match.sport] ?? []) {
       const legs = market.legs.map((l) => ({ def: l, kodd: kodds[String(l.id)] }));
       if (legs.some(({ kodd }) => !kodd || kodd.winStatus !== "ACTIVE")) continue;
 
@@ -206,16 +375,21 @@ export function buildSelectionPool(matches: MozzartMatch[], odds: MatchOdds[]): 
 
       const payoutPct = marketPayoutPct(values, market.coverage);
       legs.forEach(({ def, kodd }, i) => {
+        // Handicap/total markets carry their line separately (e.g. "175.5");
+        // plain markets have type NONE with a sentinel value of "-1".
+        const line =
+          kodd.subGame.specialOddValueType !== "NONE" ? kodd.specialOddValue : undefined;
         pool.push({
           matchId: match.id,
           code: match.matchNumber,
           teams: `${match.home} - ${match.visitor}`,
           competition: match.competition,
+          sport: SPORT_LABELS.get(match.sport) ?? "",
           kickoff: match.startTime,
           market: market.label,
           family: market.family,
           constraints: { ft: def.ft, fh: def.fh, sh: def.sh },
-          pick: kodd.subGame.subGameName,
+          pick: line ? `${kodd.subGame.subGameName} (${line})` : kodd.subGame.subGameName,
           odd: values[i],
           marketPayoutPct: payoutPct,
         });

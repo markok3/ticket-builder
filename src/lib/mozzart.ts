@@ -12,14 +12,13 @@ const HEADERS = {
 
 const PAGE_SIZE = 100;
 const ODDS_BATCH_SIZE = 40;
-const FOOTBALL_SPORT_ID = 1;
 
 interface RawMatch {
   id: number;
   matchNumber: number;
   startTime: number;
   participants: { name: string }[] | null;
-  competition: { name: string } | null;
+  competition: { name: string; sport: { id: number } | null } | null;
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -46,19 +45,19 @@ function todayInSkopje(): string {
 }
 
 /**
- * Fetch today's football matches that haven't started yet.
+ * Fetch today's matches for the given sports that haven't started yet.
  * Player-prop pseudo-matches (single participant) are filtered out.
  */
-export async function fetchTodaysMatches(): Promise<MozzartMatch[]> {
+export async function fetchTodaysMatches(sportIds: number[]): Promise<MozzartMatch[]> {
   const date = todayInSkopje();
   const raw: RawMatch[] = [];
   let offset = 0;
   let total = Infinity;
 
-  while (offset < total && offset < 1000) {
+  while (offset < total && offset < 2000) {
     const page = await post<{ matches: RawMatch[]; total: number }>("/betOffer2", {
       date,
-      sportIds: [FOOTBALL_SPORT_ID],
+      sportIds,
       competitionIds: [],
       sort: "bytime",
       specials: null,
@@ -87,6 +86,7 @@ export async function fetchTodaysMatches(): Promise<MozzartMatch[]> {
       home: m.participants![0].name,
       visitor: m.participants![1].name,
       competition: m.competition?.name ?? "",
+      sport: m.competition?.sport?.id ?? 0,
     }));
 }
 

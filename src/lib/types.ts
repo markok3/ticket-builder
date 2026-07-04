@@ -5,17 +5,23 @@ export interface MozzartMatch {
   home: string;
   visitor: string;
   competition: string;
+  /** Mozzart sport id (1 = football, 2 = basketball, 5 = tennis, …). */
+  sport: number;
 }
 
 export interface MozzartKodd {
   winStatus: string;
   value: string;
+  /** Line for handicap/total markets (e.g. "175.5"), absent for plain outcomes. */
+  specialOddValue?: string;
   subGame: {
     id: number;
     gameId: number;
     gameName: string;
     subGameName: string;
     subGameDescription: string;
+    /** "HANDICAP" / "MARGIN" when the market has a line, "NONE" otherwise. */
+    specialOddValueType: string;
   };
 }
 
@@ -29,6 +35,8 @@ export interface Selection {
   code: number;
   teams: string;
   competition: string;
+  /** Display name of the sport (e.g. "Basketball"). */
+  sport: string;
   kickoff: number;
   market: string;
   family: string;
@@ -44,6 +52,8 @@ export interface TicketLeg {
   code: number;
   teams: string;
   competition: string;
+  /** Display name of the sport; absent on tickets saved before sports were added. */
+  sport?: string;
   kickoff: number;
   market: string;
   pick: string;

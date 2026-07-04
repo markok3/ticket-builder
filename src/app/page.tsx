@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MatchScore, SavedTicket, ScoresResponse, Ticket, TicketLeg, TicketsResponse } from "@/lib/types";
 import { addTicket, loadTickets, removeTicket, ticketKey } from "@/lib/storage";
+import { SPORTS } from "@/lib/markets";
 
 const kickoffFormat = new Intl.DateTimeFormat("en-GB", {
   hour: "2-digit",
@@ -12,6 +13,11 @@ const kickoffFormat = new Intl.DateTimeFormat("en-GB", {
 
 const COUNT_OPTIONS = [10, 20, 30, 50];
 const LEG_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+/** Match ids already used on saved tickets — excluded from newly built ones. */
+function excludedMatchIds(tickets: SavedTicket[]): number[] {
+  return [...new Set(tickets.flatMap((t) => t.legs.map((l) => l.matchId)))];
+}
 
 function LegRow({ leg, score }: { leg: TicketLeg; score?: MatchScore }) {
   let scoreLine: React.ReactNode = null;
@@ -44,6 +50,7 @@ function LegRow({ leg, score }: { leg: TicketLeg; score?: MatchScore }) {
         </span>
       </div>
       <div className="mt-1 text-xs text-slate-400">
+        {leg.sport ? `${leg.sport} · ` : ""}
         {leg.competition} · {kickoffFormat.format(new Date(leg.kickoff))}
       </div>
       <div className="mt-2 flex items-center justify-between text-sm">
@@ -87,6 +94,7 @@ function BuilderTicketCard({
               </span>
             </div>
             <div className="mt-1 text-xs text-slate-400">
+              {leg.sport ? `${leg.sport} · ` : ""}
               {leg.competition} · {kickoffFormat.format(new Date(leg.kickoff))}
             </div>
             <div className="mt-2 flex items-center justify-between text-sm">
@@ -198,41 +206,65 @@ export default function Home() {
   const [minOdd, setMinOdd] = useState("");
   const [count, setCount] = useState(10);
   const [legs, setLegs] = useState(2);
+  const [sports, setSports] = useState<number[]>([1]);
   const [data, setData] = useState<TicketsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedTicket[]>([]);
 
-  useEffect(() => {
-    setSaved(loadTickets());
-  }, []);
-
   const load = useCallback(
-    async (targetValue: string, countValue: number, legsValue: number, minOddValue: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      const t = Number(targetValue);
-      if (Number.isFinite(t) && t > 1) params.set("target", String(t));
-      const m = Number(minOddValue);
-      if (minOddValue !== "" && Number.isFinite(m) && m > 1) params.set("minOdd", String(m));
-      params.set("count", String(countValue));
-      params.set("legs", String(legsValue));
-      const res = await fetch(`/api/tickets?${params}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
-      setData(json);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    async (opts: {
+      target: string;
+      count: number;
+      legs: number;
+      minOdd: string;
+      sports: number[];
+      exclude: number[];
+    }) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams();
+        const t = Number(opts.target);
+        if (Number.isFinite(t) && t > 1) params.set("target", String(t));
+        const m = Number(opts.minOdd);
+        if (opts.minOdd !== "" && Number.isFinite(m) && m > 1) params.set("minOdd", String(m));
+        params.set("count", String(opts.count));
+        params.set("legs", String(opts.legs));
+        params.set("sports", opts.sports.join(","));
+        if (opts.exclude.length > 0) params.set("exclude", opts.exclude.join(","));
+        const res = await fetch(`/api/tickets?${params}`);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
+        setData(json);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
-    load("5", 10, 2, "");
+    const stored = loadTickets();
+    setSaved(stored);
+    load({ target: "5", count: 10, legs: 2, minOdd: "", sports: [1], exclude: excludedMatchIds(stored) });
   }, [load]);
+
+  function toggleSport(id: number) {
+    const next = sports.includes(id) ? sports.filter((s) => s !== id) : [...sports, id];
+    if (next.length === 0) return; // at least one sport stays selected
+    setSports(next);
+    load({ target, count, legs, minOdd, sports: next, exclude: excludedMatchIds(saved) });
+  }
+
+  function handleAdd(ticket: Ticket) {
+    const next = addTicket(ticket);
+    setSaved(next);
+    // Rebuild so the remaining tickets no longer reuse this ticket's matches.
+    load({ target, count, legs, minOdd, sports, exclude: excludedMatchIds(next) });
+  }
 
   const savedKeys = new Set(saved.map(ticketKey));
 
@@ -243,18 +275,37 @@ export default function Home() {
           <div>
             <h1 className="text-3xl font-bold">Ticket Builder</h1>
             <p className="mt-1 text-sm text-slate-400">
-              Today&apos;s football on mozzartbet.mk — 2-leg tickets at or above your target
+              Today&apos;s matches on mozzartbet.mk — tickets at or above your target
               coefficient, lowest bookmaker margin first.
             </p>
           </div>
           {tab === "builder" && (
             <form
-              className="flex items-end gap-2"
+              className="flex flex-wrap items-end gap-2"
               onSubmit={(e) => {
                 e.preventDefault();
-                load(target, count, legs, minOdd);
+                load({ target, count, legs, minOdd, sports, exclude: excludedMatchIds(saved) });
               }}
             >
+              <div className="w-full">
+                <span className="text-sm text-slate-400">Sports</span>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {SPORTS.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => toggleSport(s.id)}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                        sports.includes(s.id)
+                          ? "border-emerald-500 bg-emerald-600/30 text-emerald-200"
+                          : "border-slate-600 bg-slate-800 text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <label className="text-sm text-slate-400">
                 Target coef
                 <input
@@ -285,7 +336,7 @@ export default function Home() {
                   onChange={(e) => {
                     const l = Number(e.target.value);
                     setLegs(l);
-                    load(target, count, l, minOdd);
+                    load({ target, count, legs: l, minOdd, sports, exclude: excludedMatchIds(saved) });
                   }}
                   className="mt-1 block w-16 rounded-md border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100"
                 >
@@ -303,7 +354,7 @@ export default function Home() {
                   onChange={(e) => {
                     const c = Number(e.target.value);
                     setCount(c);
-                    load(target, c, legs, minOdd);
+                    load({ target, count: c, legs, minOdd, sports, exclude: excludedMatchIds(saved) });
                   }}
                   className="mt-1 block w-20 rounded-md border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100"
                 >
@@ -376,7 +427,7 @@ export default function Home() {
                     ticket={t}
                     index={i}
                     added={savedKeys.has(ticketKey(t))}
-                    onAdd={(ticket) => setSaved(addTicket(ticket))}
+                    onAdd={handleAdd}
                   />
                 ))}
               </div>
